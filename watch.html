@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Speedious</title>
+  <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: auto; }
+    select, input { margin: 5px; }
+    video { width: 100%; margin-top: 10px; background: black; }
+  </style>
+</head>
+<body>
+
+<h2>Speedious</h2>
+
+<label>Quality:</label>
+<select id="quality"></select>
+
+<label>Audio:</label>
+<select id="audio">
+  <option value="original">Original audio</option>
+  <option value="stable">Stable volume</option>
+</select>
+
+<video id="player" controls preload="auto" playsinline></video>
+
+<script>
+let currentData = null;
+
+function getQueryParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+}
+
+async function loadVideo(videoId) {
+  const res = await fetch(`/api/watch?v=${videoId}`);
+  const data = await res.json();
+  currentData = data;
+
+  const qsel = document.getElementById("quality");
+  qsel.innerHTML = "";
+
+  data.qualities.forEach((q, i) => {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = q.label + (q.progressive ? " (single file)" : "");
+    qsel.appendChild(opt);
+  });
+
+  // select the highest quality by default
+  qsel.selectedIndex = 0;
+  document.getElementById("audio").selectedIndex = 0;
+
+  playSelected();
+}
+
+document.getElementById("quality").onchange = playSelected;
+document.getElementById("audio").onchange = playSelected;
+
+function playSelected() {
+  if (!currentData) return;
+
+  const qIndex = document.getElementById("quality").value;
+  const audioMode = document.getElementById("audio").value;
+
+  const q = currentData.qualities[qIndex];
+  const audioUrl = currentData.audio[audioMode];
+
+  const video = document.getElementById("player");
+
+  // Progressive case
+  if (q.progressive) {
+    video.src = q.url;
+    video.play();
+    return;
+  }
+
+  // DASH fallback
+  const mpd = `
+  <MPD type="static">
+    <Period>
+      <AdaptationSet mimeType="video/mp4">
+        <Representation bandwidth="5000000" codecs="avc1">
+          <BaseURL>${q.url}</BaseURL>
+        </Representation>
+      </AdaptationSet>
+      <AdaptationSet mimeType="audio/mp4">
+        <Representation bandwidth="128000" codecs="mp4a">
+          <BaseURL>${audioUrl}</BaseURL>
+        </Representation>
+      </AdaptationSet>
+    </Period>
+  </MPD>
+  `;
+
+  const blob = new Blob([mpd], { type: "application/dash+xml" });
+  const url = URL.createObjectURL(blob);
+
+  const player = dashjs.MediaPlayer().create();
+  player.updateSettings({
+    streaming: {
+      buffer: {
+        stableBufferTime: 30,
+        bufferTimeAtTopQuality: 60,
+      }
+    }
+  });
+
+  player.initialize(video, url, true);
+}
+
+// Auto-load video if ?v=VIDEOID exists
+const videoId = getQueryParam("v");
+if (videoId) {
+  loadVideo(videoId);
+}
+</script>
+
+</body>
+</html>
