@@ -6,7 +6,7 @@ import psutil
 import socket
 
 # -------------------------
-# Detect primary Wi-Fi/Ethernet IP (for logging only)
+# Detect primary Wi-Fi/Ethernet IP
 # -------------------------
 def get_primary_ip():
     addrs = psutil.net_if_addrs()
@@ -104,4 +104,5 @@ def watch(v: str):
 @app.get("/watch")
 def serve_watch():
     return FileResponse("watch.html")
+
 
