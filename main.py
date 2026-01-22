@@ -21,7 +21,7 @@ def get_primary_ip():
     return "127.0.0.1"
 
 PRIMARY_IP = get_primary_ip()
-print("Using primary network interface IP (for logging):", PRIMARY_IP)
+print("Using primary network interface IP:", PRIMARY_IP)
 
 # -------------------------
 # yt-dlp options
@@ -31,7 +31,7 @@ YDL_OPTS = {
     "skip_download": True,
     "nocheckcertificate": True,
     "jsruntimes": ["wscript"],  # use wscript for extraction
-    # Do NOT set source_address — OS routing ensures Wi-Fi is used
+    "source_address": PRIMARY_IP
 }
 
 # -------------------------
@@ -104,3 +104,4 @@ def watch(v: str):
 @app.get("/watch")
 def serve_watch():
     return FileResponse("watch.html")
+
